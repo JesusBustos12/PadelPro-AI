@@ -7,8 +7,6 @@ El usuario puede interactuar con el chatbot para realizar cualquier pregunta rel
 
 Construida con una arquitectura moderna utilizando **React, Vite, TypeScript y CSS Modules** en el frontend, respaldada por un servidor **Node.js y Express**. El proyecto cuenta con un diseño estético "Premium" (Glassmorphism, Modo Oscuro/Claro, micro-animaciones), seguridad avanzada (Rate Limiting, Helmet) y está empaquetado para un despliegue transparente en entornos Serverless (Vercel).
 
-Perfecto para demostrar habilidades full-stack reales y avanzadas en un portafolio profesional.
-
 ## Objetivo
 Como desarrollador, creé este proyecto para:
 
