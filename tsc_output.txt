@@ -1,0 +1,6 @@
+src/App.tsx(72,21): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLDivElement>'.
+  Type 'HTMLDivElement | null' is not assignable to type 'HTMLDivElement'.
+    Type 'null' is not assignable to type 'HTMLDivElement'.
+src/features/chat/hooks/useChat.ts(32,44): error TS2345: Argument of type 'string' is not assignable to parameter of type 'GetModelParameters'.
+src/features/chat/hooks/useChat.ts(33,42): error TS2339: Property 'generateContent' does not exist on type 'Promise<Model>'.
+src/features/chat/hooks/useLiveAudio.ts(100,45): error TS18048: 'message.serverContent.modelTurn.parts' is possibly 'undefined'.

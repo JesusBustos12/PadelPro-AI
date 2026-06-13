@@ -1,0 +1,49 @@
+:root {
+  /* Colors - PadelPro Premium Palette */
+  --primary-hue: 158;
+  --primary: hsl(var(--primary-hue), 84%, 39%);
+  --primary-hover: hsl(var(--primary-hue), 84%, 34%);
+  --primary-light: hsl(var(--primary-hue), 84%, 90%);
+  --primary-glow: hsla(var(--primary-hue), 84%, 39%, 0.2);
+
+  --bg-main: #f0fdf4;
+  --bg-paper: rgba(255, 255, 255, 0.7);
+  --bg-paper-solid: #ffffff;
+  
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-on-primary: #ffffff;
+
+  --border: #e2e8f0;
+  
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-theme='dark'] {
+  --bg-main: #020617;
+  --bg-paper: rgba(30, 41, 59, 0.6);
+  --bg-paper-solid: #0f172a;
+
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+
+  --border: #334155;
+  --primary-glow: hsla(var(--primary-hue), 84%, 39%, 0.15);
+}
