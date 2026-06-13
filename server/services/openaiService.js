@@ -3,15 +3,26 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiInstance = null;
+
+function getOpenAIClient() {
+    if (!openaiInstance) {
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error("La variable de entorno OPENAI_API_KEY está vacía o no definida. Por favor, configúrala en Vercel y vuelve a realizar un despliegue (redeploy).");
+        }
+        openaiInstance = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openaiInstance;
+}
 
 const ASSISTANT_ID = process.env.ASSISTANT_ID || 'asst_rLRaCIuVwz87zBwo2P8IXugp';
 
 // Create a new Thread for a user session
 async function createThread() {
     try {
+        const openai = getOpenAIClient();
         const thread = await openai.beta.threads.create();
         return thread.id;
     } catch (error) {
@@ -23,6 +34,7 @@ async function createThread() {
 // Send a message to an existing thread and run the assistant
 async function sendMessage(threadId, text, language) {
     try {
+        const openai = getOpenAIClient();
         // 1. Add the user message to the thread
         // We can pass language as an instruction, but since it's a conversation, 
         // we can just append it to the user message context if needed, or let the assistant naturally detect it.
@@ -41,6 +53,7 @@ async function sendMessage(threadId, text, language) {
 
         if (run.status === 'completed') {
             // 3. Retrieve the messages
+            const openai = getOpenAIClient();
             const messages = await openai.beta.threads.messages.list(run.thread_id);
             
             // The first message is the latest response from the assistant
@@ -64,6 +77,7 @@ async function sendMessage(threadId, text, language) {
 // Translate texts using standard chat completions (faster and cheaper than assistant for simple translation)
 async function translateTexts(texts, targetLang) {
     try {
+        const openai = getOpenAIClient();
         const prompt = `Translate the following Padel-related chat messages to ${targetLang}. 
 Keep the tone professional and encouraging. 
 Return ONLY a JSON array of strings in the exact same order.
