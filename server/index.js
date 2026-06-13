@@ -40,7 +40,7 @@ app.use('/api', chatRoutes);
 // Serve Static Frontend Files (Vercel & Local)
 app.use(express.static(path.join(process.cwd(), 'dist')));
 
-app.get('*', (req, res) => {
+app.get('/(.*)', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
 });
 
