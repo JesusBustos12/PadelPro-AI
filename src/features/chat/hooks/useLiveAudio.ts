@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
 import { AppLanguage, Message } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-// Convert http(s):// to ws(s):// for WebSocket
-const WS_BASE = API_BASE.replace(/^http/, 'ws');
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001');
+// Convert http(s):// to ws(s):// for WebSocket. If empty (relative), use window.location
+const WS_BASE = API_BASE 
+    ? API_BASE.replace(/^http/, 'ws') 
+    : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
 
 export const useLiveAudio = (
