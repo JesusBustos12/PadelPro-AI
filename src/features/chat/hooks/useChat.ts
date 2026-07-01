@@ -4,7 +4,6 @@ import { Message, AppLanguage } from '../types';
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
 
 export const useChat = () => {
-    const [threadId, setThreadId] = useState<string | null>(() => localStorage.getItem('padel_chat_thread_id'));
     const [messages, setMessages] = useState<Message[]>(() => {
         const saved = localStorage.getItem('padel_chat_messages');
         if (saved) {
@@ -31,45 +30,21 @@ export const useChat = () => {
         localStorage.setItem('padel_chat_messages', JSON.stringify(messages));
     }, [messages]);
 
-    // Persist thread ID
-    useEffect(() => {
-        if (threadId) {
-            localStorage.setItem('padel_chat_thread_id', threadId);
-        } else {
-            localStorage.removeItem('padel_chat_thread_id');
-        }
-    }, [threadId]);
-
-    // Initialize thread if not exists
-    useEffect(() => {
-        const initThread = async () => {
-            if (!threadId) {
-                try {
-                    const res = await fetch(`${API_BASE}/api/thread`, { method: 'POST' });
-                    const data = await res.json();
-                    if (data.threadId) {
-                        setThreadId(data.threadId);
-                    }
-                } catch (e) {
-                    console.error("Error creating thread:", e);
-                }
-            }
-        };
-        initThread();
-    }, [threadId]);
-
     const sendMessage = useCallback(async (text: string) => {
-        if (!text.trim() || isLoading || !threadId) return;
+        if (!text.trim() || isLoading) return;
 
         const userMessage: Message = { id: Date.now().toString(), role: 'user', text };
-        setMessages(prev => [...prev, userMessage]);
+        
+        // Creamos el nuevo arreglo de mensajes incluyendo el del usuario
+        const newMessages = [...messages, userMessage];
+        setMessages(newMessages);
         setIsLoading(true);
 
         try {
             const response = await fetch(`${API_BASE}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, threadId, language: 'es' })
+                body: JSON.stringify({ messages: newMessages })
             });
 
             if (!response.ok) {
@@ -111,7 +86,7 @@ export const useChat = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, threadId]);
+    }, [isLoading, messages]);
 
     const resetMessages = useCallback(async () => {
         const welcomeMsg: Message = {
@@ -121,8 +96,7 @@ export const useChat = () => {
         };
         setMessages([welcomeMsg]);
         localStorage.removeItem('padel_chat_messages');
-        localStorage.removeItem('padel_chat_thread_id');
-        setThreadId(null); // This will trigger the effect to create a new thread
+        localStorage.removeItem('padel_chat_thread_id'); // Por compatibilidad hacia atrás, limpiamos el threadId viejo
     }, []);
 
     return { messages, setMessages, isLoading, remainingMessages, sendMessage, resetMessages };

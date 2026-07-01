@@ -2,29 +2,16 @@ const express = require('express');
 const router = express.Router();
 const openaiService = require('../services/openaiService');
 
-// Create a new thread
-router.post('/thread', async (req, res, next) => {
-    try {
-        const threadId = await openaiService.createThread();
-        res.json({ threadId });
-    } catch (error) {
-        next(error);
-    }
-});
-
 // Chat Endpoint
 router.post('/chat', async (req, res, next) => {
     try {
-        const { threadId, text, language } = req.body;
+        const { messages } = req.body;
 
-        if (!text) {
-            return res.status(400).json({ error: "Text is required" });
-        }
-        if (!threadId) {
-            return res.status(400).json({ error: "ThreadId is required" });
+        if (!messages || !Array.isArray(messages)) {
+            return res.status(400).json({ error: "Messages array is required" });
         }
 
-        const responseText = await openaiService.sendMessage(threadId, text, language || 'es');
+        const responseText = await openaiService.sendMessage(messages);
         res.json({ text: responseText });
     } catch (error) {
         next(error);

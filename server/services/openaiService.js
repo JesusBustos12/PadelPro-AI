@@ -17,57 +17,56 @@ function getOpenAIClient() {
     return openaiInstance;
 }
 
-const ASSISTANT_ID = process.env.ASSISTANT_ID || 'asst_rLRaCIuVwz87zBwo2P8IXugp';
+const SYSTEM_PROMPT = `Eres "Pro Pádel AI", un instructor y entrenador de pádel virtual de élite con años de experiencia en el circuito profesional. Tu único objetivo es ayudar a los usuarios (desde nivel iniciación hasta avanzado) a mejorar su técnica, táctica, estado físico y mentalidad en el pádel.
 
-// Create a new Thread for a user session
-async function createThread() {
+Tus directrices estrictas de comportamiento son:
+
+1. ROL Y TONO:
+- Eres un profesional apasionado, empático y altamente motivador.
+- Tu tono debe ser respetuoso, alentador y directo. Habla como un entrenador que está en la pista con su alumno.
+- Adapta tu nivel de explicación según la experiencia que demuestre el usuario.
+
+2. ÁREA DE EXPERIENCIA:
+- Eres un maestro indiscutible de todos los golpes (bandeja, víbora, remate por 3, remate por 4, volea, globo, chiquita, bajada de pared, etc.).
+- Eres experto en táctica (posicionamiento, jugar con la nevera, control de la red, transiciones) y en psicología deportiva.
+- Puedes asesorar sobre equipamiento deportivo exclusivo para pádel (palas, balance, goma EVA/FOAM).
+
+3. LÍMITE DE DOMINIO (CRÍTICO):
+- TU ÚNICO TEMA DE CONVERSACIÓN ES EL PÁDEL. 
+- Si el usuario te pregunta sobre programación, política, historia, recetas de cocina o CUALQUIER otro tema ajeno al pádel, DEBES negarte cortésmente a responder y reconducir la charla al deporte. 
+- Ejemplo de evasiva: "Como tu entrenador, mi especialidad es exclusivamente el pádel. ¿Hay algo sobre tu técnica en la pista o estrategia de partido que quieras que revisemos?"
+
+4. FORMATO DE RESPUESTA:
+- Sé conciso y directo. Evita respuestas extremadamente largas a menos que se te pida una explicación paso a paso.
+- Usa **negritas** para destacar términos clave de pádel (ej: **empuñadura continental**, **zona de transición**).
+- Utiliza listas (bullet points) para explicar secuencias de movimiento, rutinas o tácticas para que la lectura sea amena en el chat.
+
+5. IDIOMA:
+- El usuario interactúa a través de una aplicación web. Responde siempre en el mismo idioma en el que el usuario formula la pregunta (tu plataforma soporta inglés y español fluidamente).`;
+
+// Send a message using Chat Completions API
+async function sendMessage(messages) {
     try {
         const openai = getOpenAIClient();
-        const thread = await openai.beta.threads.create();
-        return thread.id;
-    } catch (error) {
-        console.error("Error creating thread:", error);
-        throw error;
-    }
-}
+        
+        // Formatear mensajes para OpenAI
+        // Asegurar que el primer mensaje es el system prompt
+        const formattedMessages = [
+            { role: "system", content: SYSTEM_PROMPT },
+            ...messages.map(msg => ({
+                role: msg.role === 'user' ? 'user' : 'assistant',
+                content: msg.text
+            }))
+        ];
 
-// Send a message to an existing thread and run the assistant
-async function sendMessage(threadId, text, language) {
-    try {
-        const openai = getOpenAIClient();
-        // 1. Add the user message to the thread
-        // We can pass language as an instruction, but since it's a conversation, 
-        // we can just append it to the user message context if needed, or let the assistant naturally detect it.
-        // To be safe, we'll gently guide it via text prefix if it's not Spanish.
-        const content = language === 'es' ? text : `[Respond in ${language}] ${text}`;
-
-        await openai.beta.threads.messages.create(threadId, {
-            role: "user",
-            content: content
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: formattedMessages,
+            temperature: 0.7,
+            top_p: 0.9,
         });
 
-        // 2. Run the Assistant on the Thread
-        const run = await openai.beta.threads.runs.createAndPoll(threadId, {
-            assistant_id: ASSISTANT_ID,
-        });
-
-        if (run.status === 'completed') {
-            // 3. Retrieve the messages
-            const openai = getOpenAIClient();
-            const messages = await openai.beta.threads.messages.list(run.thread_id);
-            
-            // The first message is the latest response from the assistant
-            const latestMessage = messages.data[0];
-            
-            if (latestMessage.role === 'assistant' && latestMessage.content[0].type === 'text') {
-                return latestMessage.content[0].text.value;
-            } else {
-                return "Lo siento, hubo un problema al procesar la respuesta.";
-            }
-        } else {
-            console.error("Run ended with status:", run.status);
-            return "Lo siento, el asistente no pudo completar la solicitud.";
-        }
+        return response.choices[0].message.content;
     } catch (error) {
         console.error("Error sending message:", error);
         throw error;
@@ -91,7 +90,7 @@ Messages: ${JSON.stringify(texts)}`;
 
         const rawResponse = response.choices[0].message.content || '[]';
         // Clean markdown JSON formatting if present
-        const jsonMatch = rawResponse.match(/\\[.*\\]/s);
+        const jsonMatch = rawResponse.match(/\[.*\]/s);
         let translatedTexts;
         try {
             translatedTexts = JSON.parse(jsonMatch ? jsonMatch[0] : rawResponse.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, ''));
@@ -108,7 +107,7 @@ Messages: ${JSON.stringify(texts)}`;
 }
 
 module.exports = {
-    createThread,
     sendMessage,
     translateTexts
 };
+
