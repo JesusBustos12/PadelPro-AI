@@ -15,7 +15,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onResetChat 
         <header className={styles.header}>
             <div className={styles.brand}>
                 <div className={styles.logo}>
-                    <img src={logoImg} alt="PadelPro AI Logo" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                    <img src={logoImg} alt="PadelPro AI Logo" style={{ width: '29px', height: '29px', objectFit: 'contain' }} />
                 </div>
                 <div>
                     <h1 className={styles.title}>PadelPro AI</h1>
