@@ -3,48 +3,64 @@ import { Message, AppLanguage } from '../types';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
 
+const WELCOME_MSG: Message = {
+    id: 'welcome',
+    role: 'model',
+    text: '¡Hola! Soy tu instructor virtual de pádel. ¿En qué puedo ayudarte hoy?'
+};
+
 export const useChat = () => {
-    const [messages, setMessages] = useState<Message[]>(() => {
-        const saved = localStorage.getItem('padel_chat_messages');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                console.error("Error loading chat from storage:", e);
-            }
-        }
-        return [
-            {
-                id: 'welcome',
-                role: 'model',
-                text: '¡Hola! Soy tu instructor virtual de pádel. ¿En qué puedo ayudarte hoy?'
-            }
-        ];
-    });
+    const [threadId, setThreadId] = useState<string | null>(() => localStorage.getItem('padel_chat_thread_id'));
+    const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isTranslating, setIsTranslating] = useState(false);
     const [remainingMessages, setRemainingMessages] = useState<{remaining: number, limit: number} | null>(null);
 
-    // Persist messages to localStorage on change
+    // Initial load: create thread or fetch history
     useEffect(() => {
-        localStorage.setItem('padel_chat_messages', JSON.stringify(messages));
-    }, [messages]);
+        const initChat = async () => {
+            if (!threadId) {
+                // Create new thread
+                try {
+                    const res = await fetch(`${API_BASE}/api/thread`, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.threadId) {
+                        setThreadId(data.threadId);
+                        localStorage.setItem('padel_chat_thread_id', data.threadId);
+                    }
+                } catch (e) {
+                    console.error("Error creating thread:", e);
+                }
+            } else {
+                // Fetch existing history
+                try {
+                    const res = await fetch(`${API_BASE}/api/history/${threadId}`);
+                    const data = await res.json();
+                    if (data.messages && data.messages.length > 0) {
+                        setMessages(data.messages);
+                    } else {
+                        // Keep welcome message if no history
+                        setMessages([WELCOME_MSG]);
+                    }
+                } catch (e) {
+                    console.error("Error fetching history:", e);
+                }
+            }
+        };
+        initChat();
+    }, [threadId]);
 
     const sendMessage = useCallback(async (text: string) => {
-        if (!text.trim() || isLoading) return;
+        if (!text.trim() || isLoading || !threadId) return;
 
         const userMessage: Message = { id: Date.now().toString(), role: 'user', text };
-        
-        // Creamos el nuevo arreglo de mensajes incluyendo el del usuario
-        const newMessages = [...messages, userMessage];
-        setMessages(newMessages);
+        setMessages(prev => [...prev, userMessage]);
         setIsLoading(true);
 
         try {
             const response = await fetch(`${API_BASE}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: newMessages })
+                body: JSON.stringify({ threadId, text })
             });
 
             if (!response.ok) {
@@ -86,17 +102,13 @@ export const useChat = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, messages]);
+    }, [isLoading, threadId]);
 
     const resetMessages = useCallback(async () => {
-        const welcomeMsg: Message = {
-            id: 'welcome',
-            role: 'model',
-            text: '¡Hola! Soy tu instructor virtual de pádel. ¿En qué puedo ayudarte hoy?'
-        };
-        setMessages([welcomeMsg]);
-        localStorage.removeItem('padel_chat_messages');
-        localStorage.removeItem('padel_chat_thread_id'); // Por compatibilidad hacia atrás, limpiamos el threadId viejo
+        setMessages([WELCOME_MSG]);
+        localStorage.removeItem('padel_chat_thread_id');
+        localStorage.removeItem('padel_chat_messages'); // Just in case it still exists
+        setThreadId(null); // This will trigger the effect to create a new thread
     }, []);
 
     return { messages, setMessages, isLoading, remainingMessages, sendMessage, resetMessages };
