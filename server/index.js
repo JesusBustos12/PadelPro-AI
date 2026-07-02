@@ -12,6 +12,9 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+// Trust the Vercel reverse proxy to get correct IPs for rate limiting
+app.set('trust proxy', 1);
+
 // Middleware
 // Security HTTP headers
 app.use(helmet());
@@ -33,6 +36,25 @@ const apiLimiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 app.use('/api/chat', apiLimiter);
+
+// Endpoint to retrieve the current limit state without consuming a point
+app.get('/api/limit', async (req, res) => {
+    try {
+        const ip = req.ip;
+        // Increment to retrieve the state, then decrement immediately to revert it
+        const { totalHits, resetTime } = await apiLimiter.store.increment(ip);
+        if (typeof apiLimiter.store.decrement === 'function') {
+            await apiLimiter.store.decrement(ip);
+        }
+        res.json({
+            limit: 14,
+            remaining: Math.max(0, 14 - (totalHits - 1)),
+            resetTime
+        });
+    } catch(err) {
+        res.json({ limit: 14, remaining: 14 });
+    }
+});
 
 const chatRoutes = require('./routes/chat');
 app.use('/api', chatRoutes);

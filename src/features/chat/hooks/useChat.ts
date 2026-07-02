@@ -17,6 +17,21 @@ export const useChat = () => {
 
     // Initial load: create thread or fetch history
     useEffect(() => {
+        const fetchLimit = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/limit`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setRemainingMessages({
+                        remaining: data.remaining,
+                        limit: data.limit
+                    });
+                }
+            } catch (e) {
+                console.error("Error fetching rate limit:", e);
+            }
+        };
+
         const initChat = async () => {
             if (!threadId) {
                 // Create new thread
@@ -46,6 +61,8 @@ export const useChat = () => {
                 }
             }
         };
+        
+        fetchLimit();
         initChat();
     }, [threadId]);
 
