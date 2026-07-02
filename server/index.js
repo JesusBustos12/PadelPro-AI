@@ -5,6 +5,8 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const http = require('http');
 const path = require('path');
+const db = require('./db');
+const TiDBStore = require('./rateLimitStore');
 
 // Load environment variables
 dotenv.config();
@@ -28,31 +30,46 @@ app.use(cors({
 app.use(express.json());
 
 // Rate Limiting Setup (Only applies to chat messages)
-const apiLimiter = rateLimit({
+const limiterOptions = {
     windowMs: 24 * 60 * 60 * 1000, // 24 hours
     max: 14, // Limit each IP to 14 requests per windowMs
     message: { error: 'Has alcanzado el límite diario de 14 mensajes. Vuelve a intentarlo mañana.' },
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
+    store: new TiDBStore()
+};
+const apiLimiter = rateLimit(limiterOptions);
 app.use('/api/chat', apiLimiter);
 
 // Endpoint to retrieve the current limit state without consuming a point
 app.get('/api/limit', async (req, res) => {
     try {
-        const ip = req.ip;
-        // Increment to retrieve the state, then decrement immediately to revert it
-        const { totalHits, resetTime } = await apiLimiter.store.increment(ip);
-        if (typeof apiLimiter.store.decrement === 'function') {
-            await apiLimiter.store.decrement(ip);
+        // Obtenemos la llave exacta
+        const key = typeof apiLimiter.keyGenerator === 'function' ? await apiLimiter.keyGenerator(req, res) : req.ip;
+        
+        // Consultamos directamente la base de datos sin afectar el contador
+        const [rows] = await db.query('SELECT hits, reset_time FROM rate_limits WHERE ip = ?', [key]);
+        
+        let totalHits = 0;
+        let resetTime = new Date(Date.now() + limiterOptions.windowMs);
+        
+        if (rows && rows.length > 0) {
+            const hit = rows[0];
+            const now = Date.now();
+            if (hit.reset_time > now) {
+                totalHits = hit.hits;
+                resetTime = new Date(Number(hit.reset_time));
+            }
         }
+        
         res.json({
-            limit: 14,
-            remaining: Math.max(0, 14 - (totalHits - 1)),
+            limit: limiterOptions.max,
+            remaining: Math.max(0, limiterOptions.max - totalHits),
             resetTime
         });
     } catch(err) {
-        res.json({ limit: 14, remaining: 14 });
+        console.error("Error fetching rate limit from DB:", err);
+        res.json({ limit: limiterOptions.max, remaining: limiterOptions.max });
     }
 });
 
