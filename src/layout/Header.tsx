@@ -1,7 +1,8 @@
 import React from 'react';
-import { Moon, Sun, Activity, RotateCcw } from 'lucide-react';
+import { Moon, Sun, RotateCcw } from 'lucide-react';
 import { AppTheme } from '../features/chat/types';
 import styles from './Header.module.css';
+import logoImg from '../assets/raqueta-de-padel.png';
 
 interface HeaderProps {
     theme: AppTheme;
@@ -14,7 +15,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, toggleTheme, onResetChat 
         <header className={styles.header}>
             <div className={styles.brand}>
                 <div className={styles.logo}>
-                    <Activity size={24} />
+                    <img src={logoImg} alt="PadelPro AI Logo" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
                 </div>
                 <div>
                     <h1 className={styles.title}>PadelPro AI</h1>
