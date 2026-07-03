@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const http = require('http');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 const db = require('./db');
 const TiDBStore = require('./rateLimitStore');
 
@@ -25,9 +26,11 @@ const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 app.use(cors({
     origin: ALLOWED_ORIGIN,
     methods: ['GET', 'POST'],
+    credentials: true,
     exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
 }));
 app.use(express.json());
+app.use(cookieParser());
 
 // Rate Limiting Setup (Only applies to chat messages)
 const limiterOptions = {

@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, AppLanguage } from '../types';
+import { useState, useCallback, useEffect } from 'react';
+import { Message } from '../types';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
 
@@ -10,16 +10,15 @@ const WELCOME_MSG: Message = {
 };
 
 export const useChat = () => {
-    const [threadId, setThreadId] = useState<string | null>(() => localStorage.getItem('padel_chat_thread_id'));
     const [messages, setMessages] = useState<Message[]>([WELCOME_MSG]);
     const [isLoading, setIsLoading] = useState(false);
     const [remainingMessages, setRemainingMessages] = useState<{remaining: number, limit: number} | null>(null);
 
-    // Initial load: create thread or fetch history
+    // Initial load: fetch history (backend will set cookie if it doesn't exist)
     useEffect(() => {
         const fetchLimit = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/limit`);
+                const res = await fetch(`${API_BASE}/api/limit`, { credentials: 'omit' }); // Rate limit by IP, cookie not needed
                 if (res.ok) {
                     const data = await res.json();
                     setRemainingMessages({
@@ -33,41 +32,27 @@ export const useChat = () => {
         };
 
         const initChat = async () => {
-            if (!threadId) {
-                // Create new thread
-                try {
-                    const res = await fetch(`${API_BASE}/api/thread`, { method: 'POST' });
-                    const data = await res.json();
-                    if (data.threadId) {
-                        setThreadId(data.threadId);
-                        localStorage.setItem('padel_chat_thread_id', data.threadId);
-                    }
-                } catch (e) {
-                    console.error("Error creating thread:", e);
+            try {
+                const res = await fetch(`${API_BASE}/api/history`, { 
+                    credentials: 'include' // This ensures the browser sends and stores the threadId cookie
+                });
+                const data = await res.json();
+                if (data.messages && data.messages.length > 0) {
+                    setMessages(data.messages);
+                } else {
+                    setMessages([WELCOME_MSG]);
                 }
-            } else {
-                // Fetch existing history
-                try {
-                    const res = await fetch(`${API_BASE}/api/history/${threadId}`);
-                    const data = await res.json();
-                    if (data.messages && data.messages.length > 0) {
-                        setMessages(data.messages);
-                    } else {
-                        // Keep welcome message if no history
-                        setMessages([WELCOME_MSG]);
-                    }
-                } catch (e) {
-                    console.error("Error fetching history:", e);
-                }
+            } catch (e) {
+                console.error("Error fetching history:", e);
             }
         };
         
         fetchLimit();
         initChat();
-    }, [threadId]);
+    }, []);
 
     const sendMessage = useCallback(async (text: string) => {
-        if (!text.trim() || isLoading || !threadId) return;
+        if (!text.trim() || isLoading) return;
 
         const userMessage: Message = { id: Date.now().toString(), role: 'user', text };
         setMessages(prev => [...prev, userMessage]);
@@ -77,7 +62,8 @@ export const useChat = () => {
             const response = await fetch(`${API_BASE}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ threadId, text })
+                credentials: 'include', // Important to send the cookie back to identify the session
+                body: JSON.stringify({ text }) // threadId is no longer sent here
             });
 
             if (!response.ok) {
@@ -119,13 +105,18 @@ export const useChat = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, threadId]);
+    }, [isLoading]);
 
     const resetMessages = useCallback(async () => {
         setMessages([WELCOME_MSG]);
-        localStorage.removeItem('padel_chat_thread_id');
-        localStorage.removeItem('padel_chat_messages'); // Just in case it still exists
-        setThreadId(null); // This will trigger the effect to create a new thread
+        try {
+            await fetch(`${API_BASE}/api/reset`, { 
+                method: 'POST',
+                credentials: 'include' 
+            });
+        } catch (e) {
+            console.error("Error resetting chat:", e);
+        }
     }, []);
 
     return { messages, setMessages, isLoading, remainingMessages, sendMessage, resetMessages };

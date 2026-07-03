@@ -4,32 +4,46 @@ const crypto = require('crypto');
 const openaiService = require('../services/openaiService');
 const db = require('../db');
 
-// Create a new thread
-router.post('/thread', async (req, res, next) => {
-    try {
-        // Generating a unique ID for the session thread
-        const threadId = crypto.randomUUID();
-        
-        // Save thread in database
-        await db.query('INSERT INTO threads (id) VALUES (?)', [threadId]);
+// Helper to set the thread cookie
+const setThreadCookie = (res, threadId) => {
+    res.cookie('threadId', threadId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
+    });
+};
 
-        res.json({ threadId });
+// Reset chat / create new thread explicitly
+router.post('/reset', async (req, res, next) => {
+    try {
+        const threadId = crypto.randomUUID();
+        await db.query('INSERT INTO threads (id) VALUES (?)', [threadId]);
+        setThreadCookie(res, threadId);
+        res.json({ success: true, message: 'Chat reseteado' });
     } catch (error) {
         next(error);
     }
 });
 
-// Get chat history for a specific thread
-router.get('/history/:threadId', async (req, res, next) => {
+// Get chat history for the current session (cookie)
+router.get('/history', async (req, res, next) => {
     try {
-        const { threadId } = req.params;
+        let threadId = req.cookies.threadId;
+
+        // If no cookie, create a new thread automatically
+        if (!threadId) {
+            threadId = crypto.randomUUID();
+            await db.query('INSERT INTO threads (id) VALUES (?)', [threadId]);
+            setThreadCookie(res, threadId);
+            return res.json({ messages: [] });
+        }
 
         const [rows] = await db.query(
             'SELECT role, content as text FROM messages WHERE thread_id = ? ORDER BY created_at ASC',
             [threadId]
         );
 
-        // Format to match frontend structure (adding a pseudo-id based on time/index)
         const formattedMessages = rows.map((row, index) => ({
             id: `msg-${Date.now()}-${index}`,
             role: row.role,
@@ -45,31 +59,32 @@ router.get('/history/:threadId', async (req, res, next) => {
 // Chat Endpoint
 router.post('/chat', async (req, res, next) => {
     try {
-        const { threadId, text } = req.body;
+        const { text } = req.body;
+        const threadId = req.cookies.threadId;
 
         if (!text) {
             return res.status(400).json({ error: "Text is required" });
         }
         if (!threadId) {
-            return res.status(400).json({ error: "ThreadId is required" });
+            return res.status(400).json({ error: "No session found. Please reload." });
         }
 
-        // 1. Guardar mensaje del usuario en la base de datos
+        // 1. Guardar mensaje del usuario
         await db.query(
             'INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)',
             [threadId, 'user', text]
         );
 
-        // 2. Extraer todo el historial del hilo desde la base de datos para dar contexto a OpenAI
+        // 2. Extraer todo el historial
         const [messages] = await db.query(
             'SELECT role, content as text FROM messages WHERE thread_id = ? ORDER BY created_at ASC',
             [threadId]
         );
 
-        // 3. Enviar todo el historial a OpenAI
+        // 3. Enviar a OpenAI
         const responseText = await openaiService.sendMessage(messages);
 
-        // 4. Guardar la respuesta del bot en la base de datos
+        // 4. Guardar la respuesta del bot
         await db.query(
             'INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)',
             [threadId, 'model', responseText]
