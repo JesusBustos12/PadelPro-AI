@@ -32,7 +32,7 @@ export default function App() {
                 <title>Pro Pádel AI | Tu Entrenador Personal</title>
                 <meta name="description" content="Mejora tu juego con Pro Pádel AI, tu instructor virtual de pádel impulsado por Inteligencia Artificial." />
             </Helmet>
-            <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+            <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
                 <Header
                     theme={theme}
                     toggleTheme={toggleTheme}
